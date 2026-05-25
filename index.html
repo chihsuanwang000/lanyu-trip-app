@@ -55,6 +55,7 @@
 <script>
 const googleMap=q=>`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`;
 const API_URL='https://script.google.com/macros/s/AKfycbwZLOIxfobOQGkHxLwGCpY4BX_EAWrQoLin6tZx1RR9LWr5o6NNPT51VB4sKdk3wrlkpw/exec';
+const ACCOUNTING_API_VERSION='iframe-post-v5';
 const iconMap={MapPin:'fa-location-dot',Clock:'fa-clock',Heart:'fa-heart',Check:'fa-circle-check',Camera:'fa-camera',Ship:'fa-ship',Sunrise:'fa-sun',Utensils:'fa-utensils',Search:'fa-magnifying-glass',Star:'fa-star',Route:'fa-route',Info:'fa-circle-info',Waves:'fa-water',Home:'fa-house',Map:'fa-map',Luggage:'fa-suitcase',BookOpen:'fa-book-open',CalendarDays:'fa-calendar-days',Train:'fa-train',Bus:'fa-bus',Wallet:'fa-wallet',Plus:'fa-plus',Trash:'fa-trash'};
 const filterTags=[{label:'美食',icon:'Utensils',color:'#f3d57b'},{label:'發呆',icon:'Sunrise',color:'#9fc6bd'},{label:'拍照',icon:'Camera',color:'#f7b39e'},{label:'浮潛',icon:'Waves',color:'#8ec2c9'}];
 const days=[
@@ -162,7 +163,7 @@ async function loadExpensesFromAPI(){
   state.apiStatus='同步中…';
   renderExpense();
   try{
-    const res = await fetch(API_URL + '?t=' + Date.now(), { method:'GET' });
+    const res = await fetch(API_URL + '?action=list&t=' + Date.now(), { method:'GET', cache:'no-store' });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     const rows = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []); state.expenses = rows.map(normalizeExpense).filter(e=>e.item);
@@ -174,34 +175,46 @@ async function loadExpensesFromAPI(){
   renderExpense();
 }
 async function postToAPI(payload){
-  // 改用 GET query 寫入，讓前端可以讀到 Apps Script 回傳結果。
-  // 這樣刪除/修改若失敗，不會只在 App 畫面消失但 Google Sheets 沒有更新。
-  const params = new URLSearchParams();
-  Object.keys(payload).forEach(key => {
-    if (payload[key] === undefined || payload[key] === null) return;
-    if (Array.isArray(payload[key])) {
-      params.append(key, payload[key].join(','));
-    } else {
-      params.append(key, String(payload[key]));
+  // 最穩定版：用隱藏表單 POST 到 Apps Script iframe。
+  // 避免手機瀏覽器 / GitHub Pages / Apps Script 的 CORS 限制導致資料庫沒有真的更新。
+  return new Promise((resolve, reject) => {
+    try {
+      const iframeName = 'gs_hidden_iframe_' + Date.now();
+
+      const iframe = document.createElement('iframe');
+      iframe.name = iframeName;
+      iframe.style.display = 'none';
+      document.body.appendChild(iframe);
+
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = API_URL;
+      form.target = iframeName;
+      form.style.display = 'none';
+
+      const input = document.createElement('input');
+      input.type = 'hidden';
+      input.name = 'payload';
+      input.value = JSON.stringify(payload);
+      form.appendChild(input);
+
+      document.body.appendChild(form);
+      form.submit();
+
+      // Apps Script iframe 回傳內容不能穩定被前端讀取，所以以送出成功為準，
+      // 接著重新讀取 Google Sheets 來確認最新資料。
+      setTimeout(() => {
+        try {
+          form.remove();
+          iframe.remove();
+        } catch(e) {}
+        resolve({ success:true });
+      }, 900);
+
+    } catch (err) {
+      reject(err);
     }
   });
-
-  params.append('t', String(Date.now()));
-
-  const res = await fetch(API_URL + '?' + params.toString(), {
-    method:'GET',
-    cache:'no-store'
-  });
-
-  if(!res.ok) throw new Error('HTTP ' + res.status);
-
-  const result = await res.json();
-
-  if(!result || result.success !== true){
-    throw new Error((result && result.error) ? result.error : 'Google Sheets 更新失敗');
-  }
-
-  return result;
 }
 function syncForm(){['payer','item','amount','category'].forEach(id=>{const el=document.getElementById(id); if(el)state.form[id]=el.value})}
 function resetExpenseForm(){state.editingId=null;state.isSaving=false;state.form={payer:'季1',item:'',amount:'',category:'吃喝',splitWith:[...members]}}
@@ -231,11 +244,11 @@ async function saveExpense(){
     state.apiStatus=isEditing?'已更新，正在重新同步…':'已寫入，正在重新同步…';
     resetExpenseForm();
     renderExpense();
-    setTimeout(loadExpensesFromAPI, 1800);
+    setTimeout(loadExpensesFromAPI, 1200);
   }catch(err){
     console.error(err);
     state.isSaving=false;
-    state.apiStatus=isEditing?'更新失敗，請確認 Apps Script 部署權限':'寫入失敗，請確認 Apps Script 部署權限';
+    state.apiStatus=isEditing?'更新送出失敗，請重新同步後確認':'寫入送出失敗，請重新同步後確認';
     renderExpense();
   }
 }
@@ -251,11 +264,11 @@ async function removeExpense(id){
     state.isSaving=false;
     state.apiStatus='已從 Google Sheets 刪除，正在重新同步…';
     renderExpense();
-    setTimeout(loadExpensesFromAPI, 1800);
+    setTimeout(loadExpensesFromAPI, 1200);
   }catch(err){
     console.error(err);
     state.isSaving=false;
-    state.apiStatus='刪除失敗：Google Sheets 沒有更新，請檢查 Apps Script 回傳錯誤';
+    state.apiStatus='刪除送出失敗，請重新同步後確認';
     renderExpense();
   }
 }
