@@ -174,7 +174,15 @@ async function loadExpensesFromAPI(){
   renderExpense();
 }
 async function postToAPI(payload){
-  await fetch(API_URL, {method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  // Google Apps Script 對 file:// / GitHub Pages 的 POST 有時不會穩定收到 JSON body，
+  // 改用表單格式 payload，Apps Script 會從 e.parameter.payload 讀取，修改/刪除較穩定。
+  const body = new URLSearchParams();
+  body.append('payload', JSON.stringify(payload));
+  await fetch(API_URL, {
+    method:'POST',
+    mode:'no-cors',
+    body
+  });
 }
 function syncForm(){['payer','item','amount','category'].forEach(id=>{const el=document.getElementById(id); if(el)state.form[id]=el.value})}
 function resetExpenseForm(){state.editingId=null;state.isSaving=false;state.form={payer:'季1',item:'',amount:'',category:'吃喝',splitWith:[...members]}}
@@ -204,7 +212,7 @@ async function saveExpense(){
     state.apiStatus=isEditing?'已更新，正在重新同步…':'已寫入，正在重新同步…';
     resetExpenseForm();
     renderExpense();
-    setTimeout(loadExpensesFromAPI, 1200);
+    setTimeout(loadExpensesFromAPI, 1800);
   }catch(err){
     console.error(err);
     state.isSaving=false;
@@ -224,7 +232,7 @@ async function removeExpense(id){
     state.isSaving=false;
     state.apiStatus='已刪除，正在重新同步…';
     renderExpense();
-    setTimeout(loadExpensesFromAPI, 1200);
+    setTimeout(loadExpensesFromAPI, 1800);
   }catch(err){
     console.error(err);
     state.isSaving=false;
