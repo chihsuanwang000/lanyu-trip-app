@@ -165,7 +165,7 @@ async function loadExpensesFromAPI(){
     const res = await fetch(API_URL + '?t=' + Date.now(), { method:'GET' });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
-    state.expenses = Array.isArray(data) ? data.map(normalizeExpense).filter(e=>e.item) : [];
+    const rows = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []); state.expenses = rows.map(normalizeExpense).filter(e=>e.item);
     state.apiStatus='已同步 Google Sheets（可修改／刪除）';
   }catch(err){
     console.error(err);
