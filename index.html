@@ -21,9 +21,9 @@
   </style>
 </head>
 <body class="font-sans antialiased">
-  <main class="relative mx-auto max-w-6xl  px-5 py-6 md:py-10 pb-28">
+  <main class="relative mx-auto max-w-6xl px-5 py-6 md:py-10 pb-28">
     <section class="relative overflow-hidden rounded-[2.4rem] border-2 border-[#2f5f63] bg-[#fff9e8] p-5 md:p-8 shadow-cut">
-      <div class="absolute left-10 top-5 h-7 w-28 rotate-[ s-8deg] bg-[#f5d56e]/70 shadow-sm"></div>
+      <div class="absolute left-10 top-5 h-7 w-28 rotate-[-8deg] bg-[#f5d56e]/70 shadow-sm"></div>
       <div class="absolute right-8 top-5 hidden rotate-[8deg] rounded-full border-2 border-[#c95d44] bg-[#fff9e8]/80 px-5 py-4 text-center text-xs font-black leading-6 tracking-[0.16em] text-[#c95d44] md:block">2026<br>SUMMER<br>LAN YU</div>
       <div class="relative z-10">
         <div class="mb-4 inline-flex items-center gap-2 rounded-full border-2 border-[#8f2f1f] bg-[#f3d57b] px-4 py-2 text-xs font-black tracking-[0.18em] text-[#8f2f1f]"><i class="fa-solid fa-water"></i> REAL ISLAND SUMMER</div>
@@ -166,7 +166,7 @@ async function loadExpensesFromAPI(){
     if(!res.ok) throw new Error('HTTP '+res.status);
     const data = await res.json();
     state.expenses = Array.isArray(data) ? data.map(normalizeExpense).filter(e=>e.item) : [];
-    state.apiStatus='已同步 Google Sheets';
+    state.apiStatus='已同步 Google Sheets（可修改／刪除）';
   }catch(err){
     console.error(err);
     state.apiStatus='同步失敗，請確認 Apps Script 部署權限';
