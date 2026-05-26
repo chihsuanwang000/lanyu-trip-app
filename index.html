@@ -215,11 +215,22 @@ function renderAll(){renderHome();renderItinerary();renderMap();renderPrep();ren
   state.apiStatus='正在同步 Google Sheets…';
   renderExpense();
 
+  const startTime = Date.now();
+  const keepLoadingAtLeast = async () => {
+    const elapsed = Date.now() - startTime;
+    const remain = Math.max(0, 1000 - elapsed);
+    if(remain > 0){
+      await new Promise(resolve => setTimeout(resolve, remain));
+    }
+  };
+
   try{
     await loadExpensesFromAPI();
+    await keepLoadingAtLeast();
     state.apiStatus='已同步 Google Sheets（可修改／刪除）';
   }catch(err){
     console.error(err);
+    await keepLoadingAtLeast();
     state.apiStatus='同步失敗，請確認網路或 Apps Script';
   }finally{
     state.isSyncing=false;
@@ -412,11 +423,22 @@ async function manualSyncExpenses(){
   state.apiStatus='正在同步 Google Sheets…';
   renderExpense();
 
+  const startTime = Date.now();
+  const keepLoadingAtLeast = async () => {
+    const elapsed = Date.now() - startTime;
+    const remain = Math.max(0, 1000 - elapsed);
+    if(remain > 0){
+      await new Promise(resolve => setTimeout(resolve, remain));
+    }
+  };
+
   try{
     await loadExpensesFromAPI();
+    await keepLoadingAtLeast();
     state.apiStatus='已同步 Google Sheets（可修改／刪除）';
   }catch(err){
     console.error(err);
+    await keepLoadingAtLeast();
     state.apiStatus='同步失敗，請確認網路或 Apps Script';
   }finally{
     state.isSyncing=false;
