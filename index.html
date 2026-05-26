@@ -109,7 +109,7 @@ const representativeGroupLabel={
 };
 function getPaymentRepresentative(name){return paymentRepresentative[name]||name}
 function getRepresentativeDisplayName(name){return representativeGroupLabel[name]?`${name}（${representativeGroupLabel[name]}）`:name}
-let state={page:'home',selectedDay:'day1',query:'',selectedSpot:0,liked:load('liked',{}),checked:load('checked',{}),prepChecked:load('prepChecked',{}),expenses:[],apiStatus:'尚未同步 Google Sheets',editingId:null,isSaving:false,form:{payer:'',item:'',amount:'',category:'',splitWith:[...members]}};
+let state={page:'home',selectedDay:'day1',query:'',selectedSpot:0,liked:load('liked',{}),checked:load('checked',{}),prepChecked:load('prepChecked',{}),expenses:[],apiStatus:'尚未同步 Google Sheets',editingId:null,isSaving:false,isSyncing:false,form:{payer:'',item:'',amount:'',category:'',splitWith:[...members]}};
 function load(k,d){try{return JSON.parse(localStorage.getItem('lanyu_'+k))??d}catch{return d}} function save(k,v){localStorage.setItem('lanyu_'+k,JSON.stringify(v))} function fa(n,solid=true){return `<i class="fa-${solid?'solid':'regular'} ${iconMap[n]||'fa-circle'}"></i>`} function money(n){return '$'+Math.round(Number(n||0)).toLocaleString()}
 function tagBadge(t){const pure=t.replace(/[🍜🌴📸🤿#]/g,'').trim();const meta=filterTags.find(x=>x.label===pure);return meta?`<span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs text-[#243d3f]" style="background:${meta.color}">${fa(meta.icon)}${meta.label}</span>`:''}
 function catList(mood){return `<div class="flex flex-wrap gap-2">${filterTags.filter(t=>mood.includes(t.label)).map(t=>`<span class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold text-[#243d3f]" style="background:${t.color}">${fa(t.icon)}${t.label}</span>`).join('')}</div>`}
@@ -179,7 +179,7 @@ function renderExpense(){
   const mainButtonIcon=isSaving?'fa-spinner fa-spin':(isEditing?'fa-floppy-disk':'fa-plus');
   const mainButtonClass=isSaving?'bg-[#2f5f63] text-[#fff9e8]':'bg-[#8f2f1f] text-[#fff9e8] active:bg-[#2f5f63]';
   const statusBlock=`<div class="mt-2 rounded-2xl bg-white/80 px-4 py-3 text-center text-xs font-bold leading-5 text-[#2f5f63]"><i class="fa-solid fa-cloud-arrow-up"></i> ${state.apiStatus}</div>`;
-  document.getElementById('expense').innerHTML=`<section class="rounded-[2.4rem] border-2 border-[#243d3f] bg-[#fff9e8] p-5 shadow-cut md:p-7"><div class="flex flex-wrap items-center justify-between gap-4"><div><div class="inline-flex rounded-full border-2 border-[#8f2f1f] bg-[#f3d57b] px-4 py-2 text-xs font-black tracking-[0.22em] text-[#8f2f1f]">TRIP BUDGET</div><h2 class="mt-4 text-3xl font-black tracking-[-0.04em] text-[#243d3f] md:text-4xl">旅行記帳與分帳</h2><p class="mt-3 text-[#6e5a3f]">記錄誰先付款、要跟誰分，系統會自動算出每個人該收或該付多少。</p><div class="mt-4 flex flex-wrap items-center gap-2"><button type="button" onclick="loadExpensesFromAPI()" class="inline-flex items-center gap-2 rounded-full border-2 border-[#243d3f] bg-[#f3d57b] px-4 py-2 text-xs font-black text-[#243d3f] shadow-card"><i class="fa-solid fa-rotate"></i> 重新同步 Google Sheets</button><span class="hidden rounded-full bg-white/70 px-3 py-2 text-xs font-bold text-[#6e5a3f] sm:inline-flex">${state.apiStatus}</span></div></div><div class="rounded-[1.6rem] border-2 border-[#243d3f] bg-[#9fc6bd] px-5 py-4 shadow-card"><div class="text-xs font-black tracking-[0.2em] text-[#31595b]">TOTAL</div><div class="mt-2 text-3xl font-black text-[#173b3f]">${money(c.total)}</div></div></div><div class="mt-7 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]"><div id="expense-form" class="rounded-[2rem] border-2 ${isEditing?'border-[#8f2f1f] bg-[#f7b39e]/20':'border-[#d8c7a3] bg-white/50'} p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">${formLabel}</div><h3 class="mt-1 text-xl font-black">${formTitle}</h3>${isEditing?`<div class="mt-3 rounded-2xl bg-[#fff9e8] px-4 py-3 text-xs font-bold leading-5 text-[#8f2f1f]">正在修改既有記帳。修改完成後請按「更新這筆記帳」。</div>`:''}<div class="mt-5 grid gap-3"><select id="payer" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><option value="" ${!state.form.payer?'selected':''} disabled>付款人</option>${members.map(m=>`<option value="${m}" ${state.form.payer===m?'selected':''}>${m}</option>`).join('')}</select><input id="item" value="${attrEscape(state.form.item)}" placeholder="項目，例如：晚餐、租車、門票" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><input id="amount" value="${attrEscape(state.form.amount)}" inputmode="numeric" placeholder="金額" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><select id="category" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><option value="" ${!state.form.category?'selected':''} disabled>分類</option>${['吃喝','交通','住宿','活動','購物','其他'].map(m=>`<option value="${m}" ${state.form.category===m?'selected':''}>${m}</option>`).join('')}</select><div class="rounded-[1.5rem] border-2 border-[#d8c7a3] bg-[#fff9e8] p-4"><div class="flex items-center justify-between gap-3"><div class="text-sm font-black text-[#243d3f]">分帳對象</div><button type="button" onclick="toggleAllMembers()" class="rounded-full bg-[#e9d7b1] px-3 py-1 text-xs font-bold text-[#5f513d]">${state.form.splitWith.length===members.length?'保留付款人':'全選'}</button></div><div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">${members.map(m=>{const active=state.form.splitWith.includes(m);return `<button type="button" onclick="toggleSplitMember('${jsArg(m)}')" aria-pressed="${active}" class="flex items-center justify-center gap-1 rounded-full border-2 px-3 py-2 text-xs font-black ${active?'border-[#243d3f] bg-[#9fc6bd] text-[#173b3f] shadow-[3px_3px_0_rgba(36,61,63,0.18)]':'border-[#d8c7a3] bg-white/45 text-[#9b8b70] opacity-60'}"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full border ${active?'border-[#243d3f] bg-[#243d3f] text-white':'border-[#c9b486] bg-white text-transparent'}">✓</span>${m}</button>`}).join('')}</div><div class="mt-3 rounded-2xl bg-[#2f5f63]/10 px-3 py-2 text-xs font-bold text-[#2f5f63]">已選取 ${state.form.splitWith.length} 人：${state.form.splitWith.join('、')}</div></div><button type="button" ${isSaving?'disabled':''} onclick="saveExpense()" class="mt-2 flex w-full items-center justify-center gap-2 rounded-[1.4rem] border-2 border-[#243d3f] ${mainButtonClass} px-6 py-4 text-base font-black shadow-[6px_6px_0_rgba(36,61,63,0.22)] disabled:opacity-80"><i class="fa-solid ${mainButtonIcon}"></i> ${mainButtonText}</button>${statusBlock}${isEditing?`<button type="button" onclick="cancelEditExpense()" class="flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#d8c7a3] bg-white/70 px-5 py-3 text-sm font-black text-[#6e5a3f]">取消修改</button>`:''}</div></div><div class="grid gap-5"><div class="grid gap-3 sm:grid-cols-3"><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#f3d57b]/35 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#8f2f1f]">TOTAL</div><div class="mt-2 text-2xl font-black">${money(c.total)}</div></div><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#9fc6bd]/35 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#2f5f63]">MEMBERS</div><div class="mt-2 text-2xl font-black">${members.length}</div></div><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#f7b39e]/30 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#8f2f1f]">RECORDS</div><div class="mt-2 text-2xl font-black">${state.expenses.length}</div></div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-white/50 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#2f5f63]">SPLIT RESULT</div><h3 class="mt-1 text-xl font-black">分帳結果</h3><div class="mt-4 grid gap-3">${c.summary.map(i=>`<div class="grid grid-cols-[70px_1fr] gap-3 rounded-2xl bg-[#fff9e8]/85 px-4 py-3 text-sm"><div class="font-black text-[#243d3f]">${i.member}</div><div><div class="text-[#7a684d]">已付 ${money(i.paid)}｜應付 ${money(i.shouldPay)}</div><div class="mt-1 font-black ${i.balance>=0?'text-[#2f5f63]':'text-[#8f2f1f]'}">${i.balance>=0?`應收 ${money(i.balance)}`:`應付 ${money(Math.abs(i.balance))}`}</div></div></div>`).join('')}</div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-[#f3d57b]/25 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">SETTLEMENT</div><h3 class="mt-1 text-xl font-black">建議匯款</h3><p class="mt-2 text-xs font-bold leading-5 text-[#7a684d]">已套用代表人結算：季2→季1、陶2→陶1、哥2→哥1。個人分帳照算，實際匯款由代表人統一收付。</p><div class="mt-4 grid gap-3">${c.settlements.length?c.settlements.map(i=>`<div class="rounded-2xl bg-[#fff9e8]/85 px-4 py-3 text-sm font-bold text-[#243d3f]">${i.fromLabel||i.from} → ${i.toLabel||i.to}：${money(i.amount)}</div>`).join(''):'<div class="rounded-2xl bg-[#fff9e8]/80 p-4 text-sm text-[#6e5a3f]">目前沒有需要結算的金額。</div>'}</div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-white/50 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">DETAIL</div><h3 class="mt-1 text-xl font-black">明細</h3><div class="mt-4 grid gap-3">${state.expenses.length?state.expenses.map(e=>{
+  document.getElementById('expense').innerHTML=`<section class="rounded-[2.4rem] border-2 border-[#243d3f] bg-[#fff9e8] p-5 shadow-cut md:p-7"><div class="flex flex-wrap items-center justify-between gap-4"><div><div class="inline-flex rounded-full border-2 border-[#8f2f1f] bg-[#f3d57b] px-4 py-2 text-xs font-black tracking-[0.22em] text-[#8f2f1f]">TRIP BUDGET</div><h2 class="mt-4 text-3xl font-black tracking-[-0.04em] text-[#243d3f] md:text-4xl">旅行記帳與分帳</h2><p class="mt-3 text-[#6e5a3f]">記錄誰先付款、要跟誰分，系統會自動算出每個人該收或該付多少。</p><div class="mt-4 flex flex-wrap items-center gap-2"><button type="button" onclick="manualSyncExpenses()" class="inline-flex items-center gap-2 rounded-full border-2 border-[#243d3f] ${state.isSyncing?'bg-[#2f5f63] text-[#fff9e8]':'bg-[#f3d57b] text-[#243d3f]'} px-4 py-2 text-xs font-black shadow-card"><i class="fa-solid ${state.isSyncing?'fa-spinner fa-spin':'fa-rotate'}"></i> ${state.isSyncing?'同步中…':'重新同步 Google Sheets'}</button><span class="hidden rounded-full bg-white/70 px-3 py-2 text-xs font-bold text-[#6e5a3f] sm:inline-flex">${state.apiStatus}</span></div></div><div class="rounded-[1.6rem] border-2 border-[#243d3f] bg-[#9fc6bd] px-5 py-4 shadow-card"><div class="text-xs font-black tracking-[0.2em] text-[#31595b]">TOTAL</div><div class="mt-2 text-3xl font-black text-[#173b3f]">${money(c.total)}</div></div></div><div class="mt-7 grid gap-5 lg:grid-cols-[0.95fr_1.05fr]"><div id="expense-form" class="rounded-[2rem] border-2 ${isEditing?'border-[#8f2f1f] bg-[#f7b39e]/20':'border-[#d8c7a3] bg-white/50'} p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">${formLabel}</div><h3 class="mt-1 text-xl font-black">${formTitle}</h3>${isEditing?`<div class="mt-3 rounded-2xl bg-[#fff9e8] px-4 py-3 text-xs font-bold leading-5 text-[#8f2f1f]">正在修改既有記帳。修改完成後請按「更新這筆記帳」。</div>`:''}<div class="mt-5 grid gap-3"><select id="payer" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><option value="" ${!state.form.payer?'selected':''} disabled>付款人</option>${members.map(m=>`<option value="${m}" ${state.form.payer===m?'selected':''}>${m}</option>`).join('')}</select><input id="item" value="${attrEscape(state.form.item)}" placeholder="項目，例如：晚餐、租車、門票" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><input id="amount" value="${attrEscape(state.form.amount)}" inputmode="numeric" placeholder="金額" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><select id="category" class="rounded-2xl border-2 border-[#d8c7a3] bg-[#fff9e8] px-4 py-3 text-sm"><option value="" ${!state.form.category?'selected':''} disabled>分類</option>${['吃喝','交通','住宿','活動','購物','其他'].map(m=>`<option value="${m}" ${state.form.category===m?'selected':''}>${m}</option>`).join('')}</select><div class="rounded-[1.5rem] border-2 border-[#d8c7a3] bg-[#fff9e8] p-4"><div class="flex items-center justify-between gap-3"><div class="text-sm font-black text-[#243d3f]">分帳對象</div><button type="button" onclick="toggleAllMembers()" class="rounded-full bg-[#e9d7b1] px-3 py-1 text-xs font-bold text-[#5f513d]">${state.form.splitWith.length===members.length?'保留付款人':'全選'}</button></div><div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">${members.map(m=>{const active=state.form.splitWith.includes(m);return `<button type="button" onclick="toggleSplitMember('${jsArg(m)}')" aria-pressed="${active}" class="flex items-center justify-center gap-1 rounded-full border-2 px-3 py-2 text-xs font-black ${active?'border-[#243d3f] bg-[#9fc6bd] text-[#173b3f] shadow-[3px_3px_0_rgba(36,61,63,0.18)]':'border-[#d8c7a3] bg-white/45 text-[#9b8b70] opacity-60'}"><span class="inline-flex h-4 w-4 items-center justify-center rounded-full border ${active?'border-[#243d3f] bg-[#243d3f] text-white':'border-[#c9b486] bg-white text-transparent'}">✓</span>${m}</button>`}).join('')}</div><div class="mt-3 rounded-2xl bg-[#2f5f63]/10 px-3 py-2 text-xs font-bold text-[#2f5f63]">已選取 ${state.form.splitWith.length} 人：${state.form.splitWith.join('、')}</div></div><button type="button" ${isSaving?'disabled':''} onclick="saveExpense()" class="mt-2 flex w-full items-center justify-center gap-2 rounded-[1.4rem] border-2 border-[#243d3f] ${mainButtonClass} px-6 py-4 text-base font-black shadow-[6px_6px_0_rgba(36,61,63,0.22)] disabled:opacity-80"><i class="fa-solid ${mainButtonIcon}"></i> ${mainButtonText}</button>${statusBlock}${isEditing?`<button type="button" onclick="cancelEditExpense()" class="flex w-full items-center justify-center gap-2 rounded-full border-2 border-[#d8c7a3] bg-white/70 px-5 py-3 text-sm font-black text-[#6e5a3f]">取消修改</button>`:''}</div></div><div class="grid gap-5"><div class="grid gap-3 sm:grid-cols-3"><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#f3d57b]/35 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#8f2f1f]">TOTAL</div><div class="mt-2 text-2xl font-black">${money(c.total)}</div></div><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#9fc6bd]/35 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#2f5f63]">MEMBERS</div><div class="mt-2 text-2xl font-black">${members.length}</div></div><div class="rounded-[1.5rem] border border-[#d8c7a3] bg-[#f7b39e]/30 p-4"><div class="text-xs font-black tracking-[0.16em] text-[#8f2f1f]">RECORDS</div><div class="mt-2 text-2xl font-black">${state.expenses.length}</div></div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-white/50 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#2f5f63]">SPLIT RESULT</div><h3 class="mt-1 text-xl font-black">分帳結果</h3><div class="mt-4 grid gap-3">${c.summary.map(i=>`<div class="grid grid-cols-[70px_1fr] gap-3 rounded-2xl bg-[#fff9e8]/85 px-4 py-3 text-sm"><div class="font-black text-[#243d3f]">${i.member}</div><div><div class="text-[#7a684d]">已付 ${money(i.paid)}｜應付 ${money(i.shouldPay)}</div><div class="mt-1 font-black ${i.balance>=0?'text-[#2f5f63]':'text-[#8f2f1f]'}">${i.balance>=0?`應收 ${money(i.balance)}`:`應付 ${money(Math.abs(i.balance))}`}</div></div></div>`).join('')}</div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-[#f3d57b]/25 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">SETTLEMENT</div><h3 class="mt-1 text-xl font-black">建議匯款</h3><p class="mt-2 text-xs font-bold leading-5 text-[#7a684d]">已套用代表人結算：季2→季1、陶2→陶1、哥2→哥1。個人分帳照算，實際匯款由代表人統一收付。</p><div class="mt-4 grid gap-3">${c.settlements.length?c.settlements.map(i=>`<div class="rounded-2xl bg-[#fff9e8]/85 px-4 py-3 text-sm font-bold text-[#243d3f]">${i.fromLabel||i.from} → ${i.toLabel||i.to}：${money(i.amount)}</div>`).join(''):'<div class="rounded-2xl bg-[#fff9e8]/80 p-4 text-sm text-[#6e5a3f]">目前沒有需要結算的金額。</div>'}</div></div><div class="rounded-[2rem] border-2 border-[#d8c7a3] bg-white/50 p-5"><div class="text-xs font-black tracking-[0.22em] text-[#8f2f1f]">DETAIL</div><h3 class="mt-1 text-xl font-black">明細</h3><div class="mt-4 grid gap-3">${state.expenses.length?state.expenses.map(e=>{
   const splitWith=(e.splitWith&&e.splitWith.length?e.splitWith:members);
   const splitCount=splitWith.length||1;
   const perPerson=Math.round(Number(e.amount||0)/splitCount);
@@ -208,7 +208,26 @@ function renderExpense(){
 }).join(''):'<div class="rounded-2xl bg-[#fff9e8]/80 p-4 text-sm text-[#6e5a3f]">目前還沒有記帳資料，新增後會同步到 Google Sheets。</div>'}</div></div></div></div></section>`;
 }
 function renderFav(){const fav=days.flatMap(d=>d.items.map(i=>({...i,dayId:d.id}))).filter(i=>state.liked[itemKey(i.dayId,i)]);document.getElementById('fav').innerHTML=`<section class="rounded-[2rem] border-2 border-[#2f5f63]/20 bg-[#fff9e8] p-8 shadow-card"><i class="fa-solid fa-heart text-4xl text-[#c95d44]"></i><h2 class="mt-3 text-2xl font-black">收藏</h2>${fav.length?`<div class="mt-5 grid gap-4">${fav.map(i=>itemCard(i,i.dayId)).join('')}</div>`:'<p class="mt-2 text-[#6e5a3f]">按愛心收藏的景點與行程之後會集中在這裡。</p>'}</section>`}
-function renderAll(){renderHome();renderItinerary();renderMap();renderPrep();renderExpense();renderFav()} function setPage(p){state.page=p;document.querySelectorAll('.page').forEach(el=>el.classList.toggle('active',el.id===p));document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===p));scrollTo({top:0,behavior:'smooth'});}
+function renderAll(){renderHome();renderItinerary();renderMap();renderPrep();renderExpense();renderFav()} function setPage(p){state.page=p;document.querySelectorAll('.page').forEach(el=>el.classList.toggle('active',el.id===p));async function manualSyncExpenses(){
+  if(state.isSyncing) return;
+
+  state.isSyncing=true;
+  state.apiStatus='正在同步 Google Sheets…';
+  renderExpense();
+
+  try{
+    await loadExpensesFromAPI();
+    state.apiStatus='已同步 Google Sheets（可修改／刪除）';
+  }catch(err){
+    console.error(err);
+    state.apiStatus='同步失敗，請確認網路或 Apps Script';
+  }finally{
+    state.isSyncing=false;
+    renderExpense();
+  }
+}
+
+document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active',b.dataset.page===p));scrollTo({top:0,behavior:'smooth'});}
 function selectDay(id,goto=true){state.selectedDay=id;state.query='';renderHome();renderItinerary();if(goto)setPage('itinerary')}
 function rerenderKeepScroll(fn){
   const y = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
@@ -246,19 +265,15 @@ function normalizeExpense(row){
   return {id:String(row.id||''),payer:row.payer||'',item:row.item||'',amount:Number(row.amount||0),category:row.category||'其他',splitWith:split.map(x=>String(x).trim()).filter(Boolean)};
 }
 async function loadExpensesFromAPI(){
-  state.apiStatus='同步中…';
+  const res = await fetch(API_URL + '?action=list&t=' + Date.now(), { method:'GET', cache:'no-store' });
+  if(!res.ok) throw new Error('HTTP '+res.status);
+
+  const data = await res.json();
+  const rows = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []);
+  state.expenses = rows.map(normalizeExpense).filter(e=>e.item);
+  state.apiStatus='已同步 Google Sheets（可修改／刪除）';
   renderExpense();
-  try{
-    const res = await fetch(API_URL + '?action=list&t=' + Date.now(), { method:'GET', cache:'no-store' });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const data = await res.json();
-    const rows = Array.isArray(data) ? data : (data && Array.isArray(data.data) ? data.data : []); state.expenses = rows.map(normalizeExpense).filter(e=>e.item);
-    state.apiStatus='已同步 Google Sheets（可修改／刪除）';
-  }catch(err){
-    console.error(err);
-    state.apiStatus='同步失敗，請確認 Apps Script 部署權限';
-  }
-  renderExpense();
+  return state.expenses;
 }
 async function postToAPI(payload){
   // 最穩定版：用隱藏表單 POST 到 Apps Script iframe。
@@ -303,14 +318,14 @@ async function postToAPI(payload){
   });
 }
 function syncForm(){['payer','item','amount','category'].forEach(id=>{const el=document.getElementById(id); if(el)state.form[id]=el.value})}
-function resetExpenseForm(){state.editingId=null;state.isSaving=false;state.form={payer:'季1',item:'',amount:'',category:'吃喝',splitWith:[...members]}}
+function resetExpenseForm(){state.editingId=null;state.isSaving=false;state.form={payer:'',item:'',amount:'',category:'',splitWith:[...members]}}
 function toggleSplitMember(m){syncForm();const a=state.form.splitWith; if(a.includes(m)&&a.length>1)state.form.splitWith=a.filter(x=>x!==m); else if(!a.includes(m))a.push(m); renderExpense()}
 function toggleAllMembers(){syncForm();state.form.splitWith=state.form.splitWith.length===members.length?[state.form.payer]:[...members];renderExpense()}
 function startEditExpense(id){
   const e=state.expenses.find(x=>String(x.id)===String(id));
   if(!e) return;
   state.editingId=String(e.id);
-  state.form={payer:e.payer||'季1',item:e.item||'',amount:String(e.amount||''),category:e.category||'吃喝',splitWith:[...(e.splitWith&&e.splitWith.length?e.splitWith:members)]};
+  state.form={payer:e.payer||'',item:e.item||'',amount:String(e.amount||''),category:e.category||'',splitWith:[...(e.splitWith&&e.splitWith.length?e.splitWith:members)]};
   state.apiStatus='正在修改既有記帳';
   renderExpense();
   setTimeout(()=>document.getElementById('expense-form')?.scrollIntoView({behavior:'smooth',block:'start'}),50);
@@ -318,19 +333,51 @@ function startEditExpense(id){
 function cancelEditExpense(){resetExpenseForm();state.apiStatus='已取消修改';renderExpense()}
 async function saveExpense(){
   syncForm();
+
   const amount=Number(state.form.amount);
-  if(!state.form.payer){state.apiStatus='請選擇付款人';renderExpense();return;} if(!state.form.category){state.apiStatus='請選擇分類';renderExpense();return;} if(!state.form.item.trim()||!amount||!state.form.splitWith.length){state.apiStatus='請填寫項目、金額與分帳對象';renderExpense();return;}
   const isEditing=state.editingId!==null && state.editingId!==undefined;
-  const payload={action:isEditing?'update':'add',id:isEditing?String(state.editingId):undefined,payer:state.form.payer,item:state.form.item.trim(),amount,category:state.form.category,splitWith:[...state.form.splitWith]};
+
+  if(!state.form.payer){
+    state.apiStatus='請選擇付款人';
+    renderExpense();
+    return;
+  }
+
+  if(!state.form.category){
+    state.apiStatus='請選擇分類';
+    renderExpense();
+    return;
+  }
+
+  if(!state.form.item.trim()||!amount||!state.form.splitWith.length){
+    state.apiStatus='請填寫項目、金額與分帳對象';
+    renderExpense();
+    return;
+  }
+
+  const payload={
+    action:isEditing?'update':'add',
+    id:isEditing?String(state.editingId):undefined,
+    payer:state.form.payer,
+    item:state.form.item.trim(),
+    amount,
+    category:state.form.category,
+    splitWith:[...state.form.splitWith]
+  };
+
   state.isSaving=true;
   state.apiStatus=isEditing?'更新中…':'寫入中…';
   renderExpense();
+
   try{
     await postToAPI(payload);
+
     state.apiStatus=isEditing?'已更新，正在重新同步…':'已寫入，正在重新同步…';
     resetExpenseForm();
     renderExpense();
-    setTimeout(loadExpensesFromAPI, 1200);
+
+    setTimeout(()=>{loadExpensesFromAPI().catch(err=>{console.error(err);state.apiStatus='重新同步失敗，請按重新同步';renderExpense();});},1200);
+
   }catch(err){
     console.error(err);
     state.isSaving=false;
@@ -358,7 +405,26 @@ async function removeExpense(id){
     renderExpense();
   }
 }
-document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>setPage(btn.dataset.page)));renderAll();loadExpensesFromAPI();
+async function manualSyncExpenses(){
+  if(state.isSyncing) return;
+
+  state.isSyncing=true;
+  state.apiStatus='正在同步 Google Sheets…';
+  renderExpense();
+
+  try{
+    await loadExpensesFromAPI();
+    state.apiStatus='已同步 Google Sheets（可修改／刪除）';
+  }catch(err){
+    console.error(err);
+    state.apiStatus='同步失敗，請確認網路或 Apps Script';
+  }finally{
+    state.isSyncing=false;
+    renderExpense();
+  }
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',()=>setPage(btn.dataset.page)));renderAll();loadExpensesFromAPI().catch(err=>{console.error(err);state.apiStatus='同步失敗，請確認網路或 Apps Script';renderExpense();});
 </script>
 </body>
 </html>
